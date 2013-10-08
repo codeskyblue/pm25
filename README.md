@@ -9,6 +9,8 @@ go get github.com/shxsun/pm25  # first build
 ./pm25 -daemon  # start server
 ```
 
+**Demo** server: <http://goo.gl/92KKWx>
+
 ## How to use
 get beijing weather
 
