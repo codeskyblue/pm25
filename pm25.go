@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -51,7 +52,7 @@ var colorLevel = []color.Paint{
 var faceLevel = []string{
 	"^O^",
 	"-_-",
-	"*_*",
+	"-_!",
 	"-_-!",
 	"-_-!!",
 }
@@ -138,10 +139,13 @@ func cli(loc string) (err error) {
 	if l > 5 {
 		l = 5
 	}
-	outstr := fmt.Sprintf("%-5s %#v", faceLevel[l], *record)
-	outstr = color.NewBrush("", colorLevel[l])(outstr)
-	fmt.Println(outstr)
+	brush := color.NewBrush("", colorLevel[l])
+	stars := (record.AQI + 9) / 10
+	grayBrush := color.NewBrush("", color.LightGrayPaint)
+	bar := "[" + brush(strings.Repeat("#", stars)) + grayBrush(strings.Repeat("-", 50-stars)) + "]"
+	fmt.Printf("%-5s %s\n", brush(faceLevel[l]), bar)
 
+	fmt.Printf("%#v\n", *record)
 	return
 }
 
