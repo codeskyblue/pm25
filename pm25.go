@@ -4,14 +4,16 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/ant0ine/go-json-rest"
-	//"github.com/aybabtme/color"
+	"github.com/aybabtme/color"
 	"github.com/bitly/go-simplejson"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -19,8 +21,10 @@ import (
 const token = "5j1znBVAsnSf5xQyNQyq"
 
 var (
+	daemon    = flag.Bool("daemon", false, "start as daemon")
+	server    = flag.String("server", "115.28.15.5:8077", "server address")
 	recyle    = flag.Duration("recyle", time.Minute*30, "data collect recyle duration")
-	addr      = flag.String("addr", ":8080", "listen address")
+	addr      = flag.String("addr", ":8077", "listen address")
 	apiFormat = "http://www.pm25.in/api/querys/aqi_details.json?stations=no&city=%s&token=%s"
 
 	records = make(map[string]Record)
@@ -34,6 +38,22 @@ type Record struct {
 	SO2       int
 	Area      string
 	TimePoint string
+}
+
+var colorLevel = []color.Paint{
+	color.GreenPaint,
+	color.YellowPaint,
+	color.RedPaint,
+	color.PurplePaint,
+	color.PurplePaint,
+}
+
+var faceLevel = []string{
+	"^O^",
+	"-_-",
+	"*_*",
+	"-_-!",
+	"-_-!!",
 }
 
 func pm25(loc string) (r Record, err error) {
@@ -100,13 +120,53 @@ func GetRecord(w *rest.ResponseWriter, req *rest.Request) {
 	w.WriteJson(r)
 }
 
-func main() {
-	fmt.Println("Start pm2.5 service ...")
-	go collect(recyle)
+func cli(loc string) (err error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/%s", *server, flag.Arg(0)))
+	if err != nil {
+		return
+	}
+	record := &Record{}
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(data, record)
+	if err != nil {
+		return
+	}
+	l := record.AQI / 100
+	if l > 5 {
+		l = 5
+	}
+	outstr := fmt.Sprintf("%-5s %#v", faceLevel[l], *record)
+	outstr = color.NewBrush("", colorLevel[l])(outstr)
+	fmt.Println(outstr)
 
-	handler := rest.ResourceHandler{}
-	handler.SetRoutes(
-		rest.Route{"GET", "/:loc", GetRecord},
-	)
-	http.ListenAndServe(*addr, &handler)
+	return
+}
+
+func main() {
+	flag.Parse()
+	if *daemon {
+		fmt.Println("Start pm2.5 service ...")
+		go collect(recyle)
+		handler := rest.ResourceHandler{}
+		handler.SetRoutes(
+			rest.Route{"GET", "/:loc", GetRecord},
+		)
+		http.ListenAndServe(*addr, &handler)
+	} else {
+		if flag.NArg() != 1 {
+			flag.Usage()
+			fmt.Printf(`
+[EXAMPLE]
+%s beijing   # will get beijing pm2.5
+`, os.Args[0])
+			return
+		}
+		err := cli(flag.Arg(0))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
