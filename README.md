@@ -3,7 +3,7 @@ pm25
 
 get city pm2.5. (I hope one day we will not care about the pm2.5)
 
-## How to deploy
+## How to deploy a server
 ```
 go get github.com/shxsun/pm25  # first build
 ./pm25 -daemon  # start server
@@ -14,6 +14,9 @@ go get github.com/shxsun/pm25  # first build
 ## How to use
 get beijing weather
 
+`pm25 beijing # get beijing pm2.5`
+
+or if you want to to use you own server with $IP and $PORT.
 ```
 ./pm25 -server=$IP:$PORT beijing
 ```
