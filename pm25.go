@@ -19,12 +19,12 @@ import (
 	"time"
 )
 
-const token = "5j1znBVAsnSf5xQyNQyq"
+const token = "R9yH3BjLG5g58Z5dUbvn"
 
 var (
 	daemon    = flag.Bool("daemon", false, "start as daemon")
 	server    = flag.String("server", "115.28.15.5:8077", "server address")
-	recyle    = flag.Duration("recyle", time.Minute*30, "data collect recyle duration")
+	recyle    = flag.Duration("recyle", time.Minute*10, "data collect recyle duration")
 	addr      = flag.String("addr", ":8077", "listen address")
 	apiFormat = "http://www.pm25.in/api/querys/aqi_details.json?stations=no&city=%s&token=%s"
 
@@ -80,12 +80,14 @@ func pm25(loc string) (r Record, err error) {
 			err = fmt.Errorf("panic:%s", e)
 		}
 	}()
-	r.AQI = aqi
-	r.PM25 = station.Get("pm2_5").MustInt()
-	r.SO2 = station.Get("so2").MustInt()
-	r.PM10 = station.Get("pm10").MustInt()
-	r.Area = station.Get("area").MustString()
-	r.TimePoint = station.Get("time_point").MustString()
+	r = Record{
+		AQI:       aqi,
+		PM25:      station.Get("pm2_5").MustInt(),
+		PM10:      station.Get("pm10").MustInt(),
+		SO2:       station.Get("so2").MustInt(),
+		Area:      station.Get("area").MustString(),
+		TimePoint: station.Get("time_point").MustString(),
+	}
 	return
 }
 
@@ -121,6 +123,11 @@ func GetRecord(w *rest.ResponseWriter, req *rest.Request) {
 	w.WriteJson(r)
 }
 
+func progress(tot int, cur int, paint color.Paint) string {
+	brush := color.NewBrush("", paint)
+	return "[" + brush(strings.Repeat("#", cur)) + strings.Repeat("-", tot-cur) + "]"
+}
+
 func cli(loc string) (err error) {
 	resp, err := http.Get(fmt.Sprintf("http://%s/%s", *server, flag.Arg(0)))
 	if err != nil {
@@ -141,8 +148,9 @@ func cli(loc string) (err error) {
 	}
 	brush := color.NewBrush("", colorLevel[l])
 	stars := (record.AQI + 9) / 10
-	grayBrush := color.NewBrush("", color.LightGrayPaint)
-	bar := "[" + brush(strings.Repeat("#", stars)) + grayBrush(strings.Repeat("-", 50-stars)) + "]"
+	//grayBrush := color.NewBrush("", color.LightGrayPaint)
+	//bar := "[" + brush(strings.Repeat("#", stars)) + grayBrush(strings.Repeat("-", 50-stars)) + "]"
+	bar := progress(50, stars, colorLevel[l])
 	fmt.Printf("%-5s %s\n", brush(faceLevel[l]), bar)
 
 	fmt.Printf("%#v\n", *record)
@@ -152,7 +160,7 @@ func cli(loc string) (err error) {
 func main() {
 	flag.Parse()
 	if *daemon {
-		fmt.Println("Start pm2.5 service ...")
+		log.Println("Start pm2.5 service ...")
 		go collect(recyle)
 		handler := rest.ResourceHandler{}
 		handler.SetRoutes(
@@ -162,14 +170,10 @@ func main() {
 	} else {
 		if flag.NArg() != 1 {
 			flag.Usage()
-			fmt.Printf(`
-[EXAMPLE]
-%s beijing   # will get beijing pm2.5
-`, os.Args[0])
+			fmt.Printf("[EXAMPLE]\n%s beijing   # will get beijing pm2.5\n", os.Args[0])
 			return
 		}
-		err := cli(flag.Arg(0))
-		if err != nil {
+		if err := cli(flag.Arg(0)); err != nil {
 			log.Fatal(err)
 		}
 	}
