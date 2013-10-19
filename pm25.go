@@ -12,15 +12,20 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aybabtme/color"
-	"github.com/shxsun/pm25/api"
+	"github.com/shxsun/pm25/model"
+	"github.com/shxsun/pm25/servd"
 )
 
 var (
 	daemon = flag.Bool("daemon", false, "start as daemon")
-	server = flag.String("server", "115.28.15.5:8077", "server address")
-	addr   = flag.String("addr", ":8077", "listen address")
+	addr   = flag.String("addr", ":8077", "listen address(if deamoned) or dial addr")
+	token  = flag.String("token", "5j1znBVAsnSf5xQyNQyq", "token required by http://pm25.in")
+	dbname = flag.String("dbname", "pm25", "database name")
+	dbuser = flag.String("dbuser", "root", "database username")
+	dbpass = flag.String("dbpass", "toor", "database password")
 )
 
 var colorLevel = []color.Paint{
@@ -45,11 +50,11 @@ func progress(tot int, cur int, paint color.Paint) string {
 }
 
 func cli(loc string) (err error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/%s", *server, flag.Arg(0)))
+	resp, err := http.Get(fmt.Sprintf("http://%s/%s", *addr, flag.Arg(0)))
 	if err != nil {
 		return
 	}
-	record := &api.Record{}
+	record := &model.Record{}
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return
@@ -58,12 +63,12 @@ func cli(loc string) (err error) {
 	if err != nil {
 		return
 	}
-	l := record.AQI / 100
+	l := record.Aqi / 100
 	if l > 5 {
 		l = 5
 	}
 	brush := color.NewBrush("", colorLevel[l])
-	stars := (record.AQI + 9) / 10
+	stars := (record.Aqi + 9) / 10
 	bar := progress(50, stars, colorLevel[l])
 	fmt.Printf("%-5s %s\n", brush(faceLevel[l]), bar)
 
@@ -74,7 +79,15 @@ func cli(loc string) (err error) {
 func main() {
 	flag.Parse()
 	if *daemon {
-		http.ListenAndServe(*addr, nil)
+		servd.Token = *token
+		servd.DBName = *dbname
+		servd.DBUser = *dbuser
+		servd.DBPass = *dbpass
+		err := servd.Run(*addr, time.Minute*30)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	} else {
 		if flag.NArg() != 1 {
 			flag.Usage()
