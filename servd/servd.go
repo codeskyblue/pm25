@@ -15,9 +15,8 @@ import (
 	"github.com/shxsun/pm25/model"
 )
 
-// needed by http://pm25.in
 var (
-	Token  = "R9yH3BjLG5g58Z5dUbvn"
+	Token  = "" // needed by http://pm25.in
 	DBUser = "root"
 	DBPass = "toor"
 	DBName = "pm25"
