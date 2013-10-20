@@ -10,6 +10,7 @@ import (
 
 	"github.com/ant0ine/go-json-rest"
 	"github.com/bitly/go-simplejson"
+	"github.com/coocood/jas"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/lunny/xorm"
 	"github.com/shxsun/pm25/model"
@@ -31,26 +32,65 @@ var (
 )
 
 func Run(addr string, interval time.Duration) (err error) {
-	log.Println("Start pm2.5 service .....")
-	go collect(interval)
-	handler := rest.ResourceHandler{}
-	handler.SetRoutes(
-		rest.Route{"GET", "/:loc", GetRecord},
-	)
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handler.ServeHTTP(w, r)
-	})
-
 	engine, err = xorm.NewEngine("mysql", fmt.Sprintf("%s:%s@/%s?charset=utf8", DBUser, DBPass, DBName))
 	if err != nil {
 		return
 	}
 	defer engine.Close()
-	err = engine.Sync(new(model.Record))
+	if err = engine.Sync(new(model.Record)); err != nil {
+		return
+	}
+	err = InitService()
+	if err != nil {
+		log.Fatal(err)
+	}
+	go collect(interval)
+
+	handler := rest.ResourceHandler{}
+	handler.SetRoutes(
+		rest.Route{"GET", "/:loc", GetRecord},
+	)
+	http.Handle("/static/", http.FileServer(http.Dir("./static")))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r)
+	})
+	router := jas.NewRouter(new(Pm25))
+	router.BasePath = "/api/v2/"
+	http.Handle(router.BasePath, router)
+
+	log.Println("Start pm2.5 service .....")
+	return http.ListenAndServe(addr, nil)
+}
+
+func InitService() (err error) {
+	areas, err := Areas()
 	if err != nil {
 		return
 	}
-	return http.ListenAndServe(addr, nil)
+	for _, loc := range areas {
+		log.Printf("load city: %s", loc)
+		r, err := pm25(loc)
+		if err != nil {
+			log.Printf("load error: %s", err)
+			continue
+		}
+		records[loc] = r
+	}
+	return nil
+}
+
+// load all areas from db
+func Areas() ([]string, error) {
+	areaRecords := make([]model.Record, 0)
+	err := engine.Cols("area").GroupBy("area").Find(&areaRecords)
+	if err != nil {
+		return nil, err
+	}
+	areas := make([]string, 0, len(areaRecords))
+	for _, r := range areaRecords {
+		areas = append(areas, r.Area)
+	}
+	return areas, nil
 }
 
 func pm25(loc string) (r model.Record, err error) {
@@ -97,6 +137,7 @@ func pm25(loc string) (r model.Record, err error) {
 
 func collect(dur time.Duration) {
 	for {
+		time.Sleep(dur)
 		mu.Lock()
 		for loc, _ := range records {
 			r, err := pm25(loc)
@@ -113,21 +154,5 @@ func collect(dur time.Duration) {
 			}
 		}
 		mu.Unlock()
-		time.Sleep(dur)
 	}
-}
-
-func GetRecord(w *rest.ResponseWriter, req *rest.Request) {
-	loc := req.PathParam("loc")
-	mu.RLock()
-	r, exists := records[loc]
-	mu.RUnlock()
-	if !exists {
-		log.Printf("First request '%s'", loc)
-		mu.Lock()
-		r, _ = pm25(loc)
-		records[loc] = r
-		mu.Unlock()
-	}
-	w.WriteJson(r)
 }

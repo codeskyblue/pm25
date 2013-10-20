@@ -49,20 +49,31 @@ func progress(tot int, cur int, paint color.Paint) string {
 	return "[" + brush(strings.Repeat("#", cur)) + strings.Repeat("-", tot-cur) + "]"
 }
 
+type RetData struct {
+	Data  model.Record
+	Error string
+}
+
 func cli(loc string) (err error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/%s", *addr, flag.Arg(0)))
+	resp, err := http.Get(fmt.Sprintf("http://%s/api/v2/pm25/details?loc=%s", *addr, flag.Arg(0)))
 	if err != nil {
 		return
 	}
-	record := &model.Record{}
+	ret := &RetData{}
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
-	err = json.Unmarshal(data, record)
+	err = json.Unmarshal(data, ret)
 	if err != nil {
 		return
 	}
+
+	if ret.Error != "" {
+		return fmt.Errorf("%s", ret.Error)
+	}
+
+	record := ret.Data
 	l := record.Aqi / 100
 	if l > 5 {
 		l = 5
@@ -72,7 +83,7 @@ func cli(loc string) (err error) {
 	bar := progress(50, stars, colorLevel[l])
 	fmt.Printf("%-5s %s\n", brush(faceLevel[l]), bar)
 
-	fmt.Printf("%#v\n", *record)
+	fmt.Printf("%#v\n", record)
 	return
 }
 
