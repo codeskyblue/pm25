@@ -16,7 +16,7 @@ import (
 
 	"github.com/aybabtme/color"
 	"github.com/shxsun/pm25/model"
-	"github.com/shxsun/pm25/servd"
+	"github.com/shxsun/pm25/server"
 )
 
 var (
@@ -90,11 +90,11 @@ func cli(loc string) (err error) {
 func main() {
 	flag.Parse()
 	if *daemon {
-		servd.Token = *token
-		servd.DBName = *dbname
-		servd.DBUser = *dbuser
-		servd.DBPass = *dbpass
-		err := servd.Run(*addr, time.Minute*30)
+		server.Token = *token
+		server.DBName = *dbname
+		server.DBUser = *dbuser
+		server.DBPass = *dbpass
+		err := server.Run(*addr, time.Minute*30)
 		if err != nil {
 			fmt.Println(err)
 			return

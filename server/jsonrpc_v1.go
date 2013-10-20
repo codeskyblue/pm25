@@ -1,4 +1,4 @@
-package servd
+package server
 
 import (
 	"github.com/ant0ine/go-json-rest"
