@@ -18,8 +18,24 @@ func (*Pm25) CityList(ctx *jas.Context) {
 	ctx.Data = cities
 }
 
+func (*Pm25) History(ctx *jas.Context) {
+	loc, err := ctx.FindString("loc")
+	if err != nil {
+		ctx.Error = jas.NewRequestError("need loc")
+		return
+	}
+
+	history := make([]model.Record, 0)
+	engine.Where("area = ?", loc).Desc("time_point").Limit(14).Find(&history)
+	ctx.Data = history
+}
+
 func (*Pm25) Details(ctx *jas.Context) {
-	loc, _ := ctx.FindString("loc")
+	loc, err := ctx.FindString("loc")
+	if err != nil {
+		ctx.Error = jas.NewRequestError("need loc")
+		return
+	}
 
 	r, err := reqRecord(loc)
 	if err != nil {

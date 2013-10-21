@@ -151,7 +151,7 @@ func collect(dur time.Duration) {
 
 			_, err = engine.Insert(r)
 			if err != nil {
-				log.Println(err)
+				//log.Println(err)
 			}
 		}
 		mu.Unlock()
