@@ -50,10 +50,11 @@ func Run(addr string, interval time.Duration) (err error) {
 	handler.SetRoutes(
 		rest.Route{"GET", "/:loc", GetRecord},
 	)
-	http.Handle("/static/", http.FileServer(http.Dir("./static")))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handler.ServeHTTP(w, r)
-	})
+	//http.Handle("/static/", http.FileServer(http.Dir("static")))
+	http.Handle("/", http.FileServer(http.Dir("./")))
+	//http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	//handler.ServeHTTP(w, r)
+	//})
 	router := jas.NewRouter(new(Pm25))
 	router.BasePath = "/api/v2/"
 	http.Handle(router.BasePath, router)
