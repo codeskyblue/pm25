@@ -1,19 +1,71 @@
-var chartData = {
-	labels: ["2013-10-01", "2013-10-02", "2013-10-03", "2012-10-04", "2013-10-05", "2013-10-06", "2013-10-07"],
-	datasets: [{
-		fillColor: "rgba(151,187,205,0.5)",
-		strokeColor: "rgba(151,187,205,1)",
-		data: [28, 48, 40, 19, 96, 27, 100]
-	}]
-}
-/*
-   {
-   fillColor : "rgba(220,220,220,0.5)",
-   strokeColor : "rgba(220,220,220,1)",
-   data : [65,59,90,81,56,55,40]
-   },
-   */
 $(function() {
+	var LineDraw = function(labels, flow) {
+		var width = $("#statusDiv").width();
+		var Minimum = function(a, b) {
+			return a < b ? a: b;
+		}
+		width = Minimum(width, 800);
+
+		var data = [{
+			name: 'PV',
+			value: flow,
+			color: '#0d8ecf',
+			line_width: 2
+		}];
+		var line = new iChart.LineBasic2D({
+			render: 'statusDiv',
+			data: data,
+			align: 'center',
+			title: 'AQI Status',
+			width: width,
+			height: 300,
+			padding: 30,
+			sub_option: {
+				smooth: true,
+				point_size: 10
+			},
+			tip: {
+				enable: true,
+				shadow: true
+			},
+			legend: {
+				enable: false
+			},
+			crosshair: {
+				enable: true,
+				line_color: '#62bce9'
+			},
+			coordinate: {
+				width: 600,
+				valid_width: 500,
+				height: 260,
+				axis: {
+					color: '#9f9f9f',
+					width: [0, 0, 2, 2]
+				},
+				grids: {
+					vertical: {
+						way: 'share_alike',
+						value: 12
+					}
+				},
+				scale: [{
+					position: 'left',
+					start_scale: 0,
+					end_scale: 500,
+					scale_space: 100,
+					scale_size: 2,
+					scale_color: '#9f9f9f'
+				},
+				{
+					position: 'bottom',
+					labels: labels
+				}]
+			}
+		});
+		line.draw(); 
+	}
+
 	var apiUrl = "api/v2/pm25" // /city_list | history
 	$.get(apiUrl + "/history", {
 		"loc": "beijing"
@@ -24,12 +76,13 @@ $(function() {
 			return
 		}
 		var pm25 = [];
+		var aqi = [];
 		var labels = [];
-		var today = new Date();
 		for (var i = 0; i < ret.data.length; i++) {
 			d = ret.data[i];
 			pm25.push(d.Pm25);
-			var timePoint = (today.getDate()) + "d" + (today.getHours() - i) + "h";
+			aqi.push(d.Aqi);
+			var timePoint = i;//d.timePoint.substr(1, 2);
 			labels.push(timePoint);
 		}
 		var chartData = {
@@ -46,10 +99,10 @@ $(function() {
 		$chart.width(700);
 		var ctx = $chart.get(0).getContext("2d");
 		new Chart(ctx).Line(chartData);
+
+		LineDraw(labels, aqi);
 	},
 	"json");
-	//Get the context of the canvas element we want to select
-	//var ctx = $("#myChart").get(0).getContext("2d");
-	//var newNewChart = new Chart(ctx).Line(chartData);
-});
+
+}); // end of jQuery
 
